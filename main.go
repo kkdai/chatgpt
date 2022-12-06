@@ -21,7 +21,7 @@ func PrintResult(client gpt3.Client, ctx context.Context, quesiton string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("%+v\n", resp)
+	fmt.Printf("%s\n", resp.Choices[0].Text)
 }
 
 type NullWriter int
