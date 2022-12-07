@@ -12,18 +12,20 @@ import (
 )
 
 func PrintResult(client gpt3.Client, ctx context.Context, quesiton string) {
-	resp, err := client.Completion(ctx, gpt3.CompletionRequest{
+	err := client.CompletionStreamWithEngine(ctx, gpt3.TextDavinci003Engine, gpt3.CompletionRequest{
 		Prompt: []string{
 			quesiton,
 		},
-		MaxTokens: gpt3.IntPtr(500),
-		Echo:      true,
+		MaxTokens:   gpt3.IntPtr(3000),
+		Temperature: gpt3.Float32Ptr(0),
+	}, func(resp *gpt3.CompletionResponse) {
+		fmt.Print(resp.Choices[0].Text)
 	})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(13)
 	}
-	fmt.Printf("%s\n", resp.Choices[0].Text)
+	fmt.Printf("\n")
 }
 
 type NullWriter int
@@ -34,7 +36,7 @@ func main() {
 	log.SetOutput(new(NullWriter))
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
-		log.Fatalln("Missing API KEY")
+		panic("Missing API KEY")
 	}
 
 	ctx := context.Background()
@@ -47,7 +49,7 @@ func main() {
 			quit := false
 
 			for !quit {
-				fmt.Print("Input your quesiton:> ")
+				fmt.Print("輸入你的問題(quit 離開): ")
 
 				if !scanner.Scan() {
 					break
