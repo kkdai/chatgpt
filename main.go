@@ -16,10 +16,12 @@ func PrintResult(client gpt3.Client, ctx context.Context, quesiton string) {
 		Prompt: []string{
 			quesiton,
 		},
-		MaxTokens: gpt3.IntPtr(10),
+		MaxTokens: gpt3.IntPtr(500),
+		Echo:      true,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		os.Exit(13)
 	}
 	fmt.Printf("%s\n", resp.Choices[0].Text)
 }
