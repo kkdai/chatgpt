@@ -42,7 +42,7 @@ func main() {
 	ctx := context.Background()
 	client := gpt3.NewClient(apiKey)
 	rootCmd := &cobra.Command{
-		Use:   "ilovegpt",
+		Use:   "chatgpt",
 		Short: "Chat with ChatGPT in console.",
 		Run: func(cmd *cobra.Command, args []string) {
 			scanner := bufio.NewScanner(os.Stdin)
