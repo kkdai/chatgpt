@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func PrintResult(client gpt3.Client, ctx context.Context, quesiton string) {
+func GetResponse(client gpt3.Client, ctx context.Context, quesiton string) {
 	err := client.CompletionStreamWithEngine(ctx, gpt3.TextDavinci003Engine, gpt3.CompletionRequest{
 		Prompt: []string{
 			quesiton,
@@ -61,7 +61,7 @@ func main() {
 					quit = true
 
 				default:
-					PrintResult(client, ctx, question)
+					GetResponse(client, ctx, question)
 				}
 			}
 		},
