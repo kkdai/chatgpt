@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	gpt3 "github.com/PullRequestInc/go-gpt3"
 	"github.com/spf13/cobra"
@@ -56,16 +57,30 @@ func main() {
 				}
 
 				question := scanner.Text()
-				switch question {
+				questionParam := validateQuestion(question)
+				switch questionParam {
 				case "quit":
 					quit = true
+				case "":
+					continue
 
 				default:
-					GetResponse(client, ctx, question)
+					GetResponse(client, ctx, questionParam)
 				}
 			}
 		},
 	}
 
-	rootCmd.Execute()
+	log.Fatal(rootCmd.Execute())
+}
+
+func validateQuestion(question string) string {
+	quest := strings.Trim(question, " ")
+	keywords := []string{"", "loop", "break", "continue", "cls", "exit", "block"}
+	for _, x := range keywords {
+		if quest == x {
+			return ""
+		}
+	}
+	return quest
 }
