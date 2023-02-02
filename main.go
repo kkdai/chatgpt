@@ -7,25 +7,21 @@ import (
 	"log"
 	"os"
 
-	gpt3 "github.com/PullRequestInc/go-gpt3"
+	gpt3 "github.com/sashabaranov/go-gpt3"
 	"github.com/spf13/cobra"
 )
 
-func GetResponse(client gpt3.Client, ctx context.Context, quesiton string) {
-	err := client.CompletionStreamWithEngine(ctx, gpt3.TextDavinci003Engine, gpt3.CompletionRequest{
-		Prompt: []string{
-			quesiton,
-		},
-		MaxTokens:   gpt3.IntPtr(3000),
-		Temperature: gpt3.Float32Ptr(0),
-	}, func(resp *gpt3.CompletionResponse) {
-		fmt.Print(resp.Choices[0].Text)
-	})
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(13)
+func GetResponse(client *gpt3.Client, ctx context.Context, quesiton string) {
+	req := gpt3.CompletionRequest{
+		Model:     gpt3.GPT3TextDavinci001,
+		MaxTokens: 300,
+		Prompt:    quesiton,
 	}
-	fmt.Printf("\n")
+	resp, err := client.CreateCompletion(ctx, req)
+	if err != nil {
+		return
+	}
+	fmt.Println(resp.Choices[0].Text)
 }
 
 type NullWriter int
