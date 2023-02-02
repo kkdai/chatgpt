@@ -18,10 +18,11 @@ Request your OpenAPI key in [https://beta.openai.com/account/api-keys](https://b
 Usage
 ---------------------
 
-    API_KEY=YOUR_KEY chatgpt  
+    export API_KEY=YOUR_KEY chatgpt  
 
 Snapshot
 ---------------
+
 ![](img/chatgpt.gif)
 
 Contribute
