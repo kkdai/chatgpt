@@ -69,7 +69,7 @@ func main() {
 			quit := false
 
 			for !quit {
-				fmt.Print("輸入你的問題(quit 離開): ")
+				fmt.Print("Input your question (type `quit` to exit): ")
 
 				if !scanner.Scan() {
 					break
