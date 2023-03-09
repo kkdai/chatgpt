@@ -3,11 +3,13 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
-	gpt3 "github.com/sashabaranov/go-gpt3"
+	gpt3 "github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
 
@@ -16,12 +18,32 @@ func GetResponse(client *gpt3.Client, ctx context.Context, quesiton string) {
 		Model:     gpt3.GPT3TextDavinci001,
 		MaxTokens: 300,
 		Prompt:    quesiton,
+		Stream:    true,
 	}
-	resp, err := client.CreateCompletion(ctx, req)
+
+	resp, err := client.CreateCompletionStream(ctx, req)
 	if err != nil {
-		return
+		fmt.Errorf("CreateCompletionStream returned error: %v", err)
 	}
-	fmt.Println(resp.Choices[0].Text)
+	defer resp.Close()
+
+	counter := 0
+	for {
+		data, err := resp.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			fmt.Errorf("Stream error: %v", err)
+		} else {
+			counter++
+			fmt.Print(data.Choices[0].Text)
+
+		}
+	}
+	if counter == 0 {
+		fmt.Errorf("Stream did not return any responses")
+	}
 }
 
 type NullWriter int
