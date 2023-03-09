@@ -3,30 +3,49 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 
-	gpt3 "github.com/PullRequestInc/go-gpt3"
+	gpt3 "github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
 
-func GetResponse(client gpt3.Client, ctx context.Context, quesiton string) {
-	err := client.CompletionStreamWithEngine(ctx, gpt3.TextDavinci003Engine, gpt3.CompletionRequest{
-		Prompt: []string{
-			quesiton,
-		},
-		MaxTokens:   gpt3.IntPtr(3000),
-		Temperature: gpt3.Float32Ptr(0),
-	}, func(resp *gpt3.CompletionResponse) {
-		fmt.Print(resp.Choices[0].Text)
-	})
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(13)
+func GetResponse(client *gpt3.Client, ctx context.Context, quesiton string) {
+	req := gpt3.CompletionRequest{
+		Model:     gpt3.GPT3TextDavinci001,
+		MaxTokens: 300,
+		Prompt:    quesiton,
+		Stream:    true,
 	}
-	fmt.Printf("\n")
+
+	resp, err := client.CreateCompletionStream(ctx, req)
+	if err != nil {
+		fmt.Errorf("CreateCompletionStream returned error: %v", err)
+	}
+	defer resp.Close()
+
+	counter := 0
+	for {
+		data, err := resp.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			fmt.Errorf("Stream error: %v", err)
+		} else {
+			counter++
+			fmt.Print(data.Choices[0].Text)
+
+		}
+	}
+	if counter == 0 {
+		fmt.Errorf("Stream did not return any responses")
+	}
+	fmt.Println("")
 }
 
 type NullWriter int

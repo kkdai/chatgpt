@@ -3,7 +3,7 @@ module github.com/kkdai/chatgpt
 go 1.19
 
 require (
-	github.com/PullRequestInc/go-gpt3 v1.1.9
+	github.com/sashabaranov/go-openai v1.4.2
 	github.com/spf13/cobra v1.6.1
 )
 
