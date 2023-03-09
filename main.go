@@ -44,6 +44,7 @@ func GetResponse(client *gpt3.Client, ctx context.Context, quesiton string) {
 	if counter == 0 {
 		fmt.Errorf("Stream did not return any responses")
 	}
+	fmt.Println("")
 }
 
 type NullWriter int
