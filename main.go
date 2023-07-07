@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetResponse(client *gpt3.Client, ctx context.Context, quesiton string) {
+func GetResponse(client *gpt3.Client, ctx context.Context, question string) {
 	req := gpt3.CompletionRequest{
 		Model:     gpt3.GPT3TextDavinci001,
 		MaxTokens: 300,
-		Prompt:    quesiton,
+		Prompt:    question,
 		Stream:    true,
 	}
 
