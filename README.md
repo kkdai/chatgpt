@@ -10,6 +10,12 @@ Install
 
     go get -u -x github.com/kkdai/chatgpt
 
+From aur
+--------------
+
+    paru -S chatgpt-cli-bin
+
+
 Request for API from OpenAI
 ---------------------
 
