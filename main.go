@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ const helpText = `Commands:
   /reset            clear the conversation history
   /save <file>      save the conversation as JSON (use --force to overwrite)
   /load <file>      load a saved JSON conversation
+  /image <file>     attach an image (png, jpg, gif, webp) to your next question
   /help             show this help
   quit, exit        leave
 Press Ctrl+C while an answer is streaming to interrupt it.`
@@ -119,6 +121,15 @@ func run(ctx context.Context, in io.Reader, chat *Chat, timeout time.Duration) {
 			} else {
 				fmt.Printf("Conversation loaded from %s.\n", fields[1])
 			}
+		case input == "/image" || strings.HasPrefix(input, "/image "):
+			path := strings.TrimSpace(strings.TrimPrefix(input, "/image"))
+			if path == "" {
+				fmt.Fprintln(os.Stderr, "Usage: /image <file>")
+			} else if err := chat.AttachImage(path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error attaching image: %v\n", err)
+			} else {
+				fmt.Printf("Image attached (%d pending); it is sent with your next question.\n", chat.PendingImages())
+			}
 		case input == "/system" || strings.HasPrefix(input, "/system "):
 			chat.SetSystem(strings.TrimSpace(strings.TrimPrefix(input, "/system")))
 			fmt.Println("System prompt updated, conversation cleared.")
@@ -140,6 +151,8 @@ func main() {
 		prompt  string
 		baseURL string
 		timeout time.Duration
+		effort  string
+		schema  string
 	)
 
 	rootCmd := &cobra.Command{
@@ -155,6 +168,20 @@ func main() {
 				cfg.BaseURL = baseURL
 			}
 			chat := NewChat(openai.NewClientWithConfig(cfg), model, system)
+			chat.ReasoningEffort = effort
+			if schema != "" {
+				raw := []byte(schema)
+				if strings.HasPrefix(schema, "@") {
+					var err error
+					if raw, err = os.ReadFile(schema[1:]); err != nil {
+						return fmt.Errorf("read json schema: %w", err)
+					}
+				}
+				if !json.Valid(raw) {
+					return errors.New("--json-schema is not valid JSON")
+				}
+				chat.JSONSchema = json.RawMessage(raw)
+			}
 			if prompt != "" || !isTerminal(os.Stdin) {
 				var input []byte
 				if !isTerminal(os.Stdin) {
@@ -188,6 +215,8 @@ func main() {
 	rootCmd.Flags().StringVarP(&system, "system", "s", "", "system prompt")
 	rootCmd.Flags().StringVarP(&prompt, "prompt", "p", "", "send one prompt and exit")
 	rootCmd.Flags().StringVar(&baseURL, "base-url", envOr("OPENAI_BASE_URL", ""), "OpenAI-compatible API base URL (env OPENAI_BASE_URL)")
+	rootCmd.Flags().StringVar(&effort, "reasoning-effort", envOr("OPENAI_REASONING_EFFORT", ""), "reasoning effort for o-series models: low, medium, high (env OPENAI_REASONING_EFFORT)")
+	rootCmd.Flags().StringVar(&schema, "json-schema", "", "force JSON output matching this JSON schema (inline JSON or @file)")
 	rootCmd.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "maximum time for one answer (0 for no limit)")
 
 	if err := rootCmd.ExecuteContext(context.Background()); err != nil {

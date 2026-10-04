@@ -47,7 +47,7 @@ chatgpt: 以 Golang 撰寫的 Chat GPT 終端機客戶端
     echo "什麼是 Go？" | chatgpt
 
 互動模式下會保留對話歷史。對話中可用的指令：`/system <prompt>`、`/reset`、
-`/save <file>`、`/load <file>`、`/help`、`quit` / `exit`。對話檔使用 JSON 格式；
+`/save <file>`、`/load <file>`、`/image <file>`、`/help`、`quit` / `exit`。對話檔使用 JSON 格式；
 `/save` 不會覆蓋既有檔案，除非使用 `/save --force <file>`。回答串流輸出時按 Ctrl+C 可中斷。
 
 當 API 回報 token 用量時，會連同預估費用輸出到 stderr（支援 GPT-4o 與 GPT-4.1 系列）。
@@ -69,3 +69,9 @@ Snapshot
 ---------------
 
 本專案採用 MIT 授權，詳見 LICENSE。
+
+## Reasoning、圖片輸入與結構化輸出
+
+- `--reasoning-effort low|medium|high`（環境變數 `OPENAI_REASONING_EFFORT`），供 o 系列模型使用。
+- `/image <file>` 將本機圖片附加到下一個問題（需使用支援 vision 的模型）。
+- `--json-schema '<schema>'` 或 `--json-schema @schema.json` 強制輸出符合指定的 JSON schema。

@@ -47,7 +47,7 @@ that prompt. Piped input without `-p` is sent as a single prompt:
     echo "What is Go?" | chatgpt
 
 The conversation keeps its history across interactive questions. In-session
-commands: `/system <prompt>`, `/reset`, `/save <file>`, `/load <file>`,
+commands: `/system <prompt>`, `/reset`, `/save <file>`, `/load <file>`, `/image <file>`,
 `/help`, `quit` / `exit`. Conversation files use JSON; `/save` refuses to
 overwrite an existing file unless `/save --force <file>` is used. Press Ctrl+C
 while an answer is streaming to interrupt it.
@@ -72,3 +72,9 @@ License
 ---------------
 
 This package is licensed under MIT license. See LICENSE for details.
+
+## Reasoning, vision and structured output
+
+- `--reasoning-effort low|medium|high` (env `OPENAI_REASONING_EFFORT`) for o-series models.
+- `/image <file>` attaches a local image to the next question (vision-capable models).
+- `--json-schema '<schema>'` or `--json-schema @schema.json` forces output to match a JSON schema.

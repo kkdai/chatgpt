@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -191,5 +192,24 @@ func TestEstimateCost(t *testing.T) {
 	}
 	if _, ok := estimateCost("custom-model", usage); ok {
 		t.Error("custom model should not have a guessed price")
+	}
+}
+
+func TestAttachImageAndMessage(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a.png")
+	if err := os.WriteFile(path, []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c := NewChat(nil, "m", "")
+	if err := c.AttachImage(filepath.Join(dir, "a.txt")); err == nil {
+		t.Fatal("expected unsupported type error")
+	}
+	if err := c.AttachImage(path); err != nil {
+		t.Fatal(err)
+	}
+	msg := c.userMessage("hi")
+	if len(msg.MultiContent) != 2 || !strings.HasPrefix(msg.MultiContent[1].ImageURL.URL, "data:image/png;base64,") {
+		t.Fatalf("unexpected message: %+v", msg)
 	}
 }

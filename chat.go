@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -19,6 +21,63 @@ type Chat struct {
 	system   string
 	messages []openai.ChatCompletionMessage
 	usage    *openai.Usage
+
+	// ReasoningEffort is sent as reasoning_effort when non-empty (o-series models).
+	ReasoningEffort string
+	// JSONSchema, when set, forces the answer to match this schema (Structured Outputs).
+	JSONSchema json.RawMessage
+	images     []string
+}
+
+const maxImageSize = 20 << 20
+
+var imageMIMETypes = map[string]string{
+	".png":  "image/png",
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif":  "image/gif",
+	".webp": "image/webp",
+}
+
+// AttachImage queues a local image to be sent with the next question.
+func (c *Chat) AttachImage(path string) error {
+	mime, ok := imageMIMETypes[strings.ToLower(filepath.Ext(path))]
+	if !ok {
+		return errors.New("unsupported image type (use png, jpg, gif or webp)")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open image: %w", err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxImageSize+1))
+	if err != nil {
+		return fmt.Errorf("read image: %w", err)
+	}
+	if len(data) > maxImageSize {
+		return errors.New("image exceeds 20 MiB limit")
+	}
+	c.images = append(c.images, "data:"+mime+";base64,"+base64.StdEncoding.EncodeToString(data))
+	return nil
+}
+
+// PendingImages returns the number of images waiting for the next question.
+func (c *Chat) PendingImages() int {
+	return len(c.images)
+}
+
+func (c *Chat) userMessage(question string) openai.ChatCompletionMessage {
+	if len(c.images) == 0 {
+		return openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: question}
+	}
+	parts := []openai.ChatMessagePart{{Type: openai.ChatMessagePartTypeText, Text: question}}
+	for _, url := range c.images {
+		parts = append(parts, openai.ChatMessagePart{
+			Type:     openai.ChatMessagePartTypeImageURL,
+			ImageURL: &openai.ChatMessageImageURL{URL: url},
+		})
+	}
+	return openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, MultiContent: parts}
 }
 
 type codeFenceWriter struct {
@@ -201,19 +260,28 @@ func (c *Chat) Ask(ctx context.Context, w io.Writer, question string) error {
 		colorWriter = &codeFenceWriter{w: w}
 		output = colorWriter
 	}
-	history := append(c.messages, openai.ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
-		Content: question,
-	})
+	history := append(c.messages, c.userMessage(question))
 
-	stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
+	req := openai.ChatCompletionRequest{
 		Model:    c.model,
 		Messages: history,
 		Stream:   true,
 		StreamOptions: &openai.StreamOptions{
 			IncludeUsage: true,
 		},
-	})
+		ReasoningEffort: c.ReasoningEffort,
+	}
+	if len(c.JSONSchema) > 0 {
+		req.ResponseFormat = &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+			JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+				Name:   "response",
+				Schema: c.JSONSchema,
+				Strict: true,
+			},
+		}
+	}
+	stream, err := c.client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		return fmt.Errorf("create stream: %w", err)
 	}
@@ -247,6 +315,7 @@ func (c *Chat) Ask(ctx context.Context, w io.Writer, question string) error {
 	}
 
 	if answer.Len() > 0 {
+		c.images = nil
 		c.messages = append(history, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleAssistant,
 			Content: answer.String(),
