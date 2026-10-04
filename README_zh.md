@@ -54,12 +54,6 @@ chatgpt: 以 Golang 撰寫的 Chat GPT 終端機客戶端
 對話檔使用 JSON 格式；`/save` 不會覆蓋既有檔案，除非使用 `/save --force <file>`。
 回答串流輸出時按 Ctrl+C 可中斷。
 
-### 推理、圖片與結構化輸出
-
-- 使用 `--reasoning-effort low|medium|high` 設定 o-series 模型的推理程度，也可透過 `OPENAI_REASONING_EFFORT` 環境變數設定。
-- 在互動模式輸入 `/image <file>`，可將本機圖片附加至下一個問題；請使用支援視覺功能的模型。
-- 使用 `--json-schema '<JSON Schema>'` 指定結構化輸出的格式。
-
 當 API 回報 token 用量時，會連同預估費用輸出到 stderr（支援 GPT-4o 與 GPT-4.1 系列）。
 預估值依公開的每 token 價格計算，可能與各服務商實際計價不同。輸出至終端機時程式碼區塊會上色；
 重新導向的輸出則維持純文字。
@@ -79,3 +73,9 @@ Snapshot
 ---------------
 
 本專案採用 MIT 授權，詳見 LICENSE。
+
+## 推理、圖片輸入與結構化輸出
+
+- `--reasoning-effort low|medium|high`（環境變數 `OPENAI_REASONING_EFFORT`）可設定 o 系列模型的推理程度。
+- `/image <file>` 可將本機圖片附加至下一個問題，需使用支援視覺功能的模型。
+- `--json-schema '<JSON Schema>'` 或 `--json-schema @schema.json` 可指定結構化輸出的格式。
