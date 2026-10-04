@@ -1,9 +1,8 @@
 package openai
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -29,17 +28,22 @@ type EditsResponse struct {
 	Created int64         `json:"created"`
 	Usage   Usage         `json:"usage"`
 	Choices []EditsChoice `json:"choices"`
+
+	httpHeader
 }
 
-// Perform an API call to the Edits endpoint.
+// Edits Perform an API call to the Edits endpoint.
+/* Deprecated: Users of the Edits API and its associated models (e.g., text-davinci-edit-001 or code-davinci-edit-001)
+will need to migrate to GPT-3.5 Turbo by January 4, 2024.
+You can use CreateChatCompletion or CreateChatCompletionStream instead.
+*/
 func (c *Client) Edits(ctx context.Context, request EditsRequest) (response EditsResponse, err error) {
-	var reqBytes []byte
-	reqBytes, err = json.Marshal(request)
-	if err != nil {
-		return
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.fullURL("/edits"), bytes.NewBuffer(reqBytes))
+	req, err := c.newRequest(
+		ctx,
+		http.MethodPost,
+		c.fullURL("/edits", withModel(fmt.Sprint(request.Model))),
+		withBody(request),
+	)
 	if err != nil {
 		return
 	}
