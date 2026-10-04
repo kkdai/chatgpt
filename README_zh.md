@@ -39,6 +39,8 @@ chatgpt: 以 Golang 撰寫的 Chat GPT 終端機客戶端
     -p, --prompt string    送出單一 prompt 後結束
         --base-url string  OpenAI 相容 API 的 base URL（環境變數 OPENAI_BASE_URL）
         --timeout duration 單次回答的最長時間（預設 5m0s，0 表示不限制）
+        --reasoning-effort string  o-series 模型的推理程度：low、medium 或 high（環境變數 OPENAI_REASONING_EFFORT）
+        --json-schema string       指定結構化輸出的 JSON Schema
 
 單次或管線使用時，可用 `-p` 傳入 prompt；管線輸入的文字會附加在該 prompt 之後。
 沒有 `-p` 時，管線輸入會被當成單一 prompt 送出：
@@ -47,8 +49,16 @@ chatgpt: 以 Golang 撰寫的 Chat GPT 終端機客戶端
     echo "什麼是 Go？" | chatgpt
 
 互動模式下會保留對話歷史。對話中可用的指令：`/system <prompt>`、`/reset`、
-`/save <file>`、`/load <file>`、`/help`、`quit` / `exit`。對話檔使用 JSON 格式；
-`/save` 不會覆蓋既有檔案，除非使用 `/save --force <file>`。回答串流輸出時按 Ctrl+C 可中斷。
+`/save <file>`、`/load <file>`、`/image <file>`、`/help`、`quit` / `exit`。
+`/image <file>` 會將本機圖片附加至下一個問題，適用於支援視覺功能的模型。
+對話檔使用 JSON 格式；`/save` 不會覆蓋既有檔案，除非使用 `/save --force <file>`。
+回答串流輸出時按 Ctrl+C 可中斷。
+
+### 推理、圖片與結構化輸出
+
+- 使用 `--reasoning-effort low|medium|high` 設定 o-series 模型的推理程度，也可透過 `OPENAI_REASONING_EFFORT` 環境變數設定。
+- 在互動模式輸入 `/image <file>`，可將本機圖片附加至下一個問題；請使用支援視覺功能的模型。
+- 使用 `--json-schema '<JSON Schema>'` 指定結構化輸出的格式。
 
 當 API 回報 token 用量時，會連同預估費用輸出到 stderr（支援 GPT-4o 與 GPT-4.1 系列）。
 預估值依公開的每 token 價格計算，可能與各服務商實際計價不同。輸出至終端機時程式碼區塊會上色；
