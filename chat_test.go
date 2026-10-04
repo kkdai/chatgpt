@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -31,6 +32,7 @@ func newTestChat(t *testing.T, system string, handler func(openai.ChatCompletion
 		for _, c := range chunks {
 			fmt.Fprintf(w, "data: {\"choices\":[{\"delta\":{\"content\":%q}}]}\n\n", c)
 		}
+		fmt.Fprint(w, "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\n")
 		fmt.Fprint(w, "data: [DONE]\n\n")
 	}))
 	t.Cleanup(srv.Close)
@@ -61,6 +63,12 @@ func TestAskStreamsAndKeepsHistory(t *testing.T) {
 	second := requests[1]
 	if second.Model != "test-model" {
 		t.Errorf("model = %q", second.Model)
+	}
+	if second.StreamOptions == nil || !second.StreamOptions.IncludeUsage {
+		t.Error("stream usage was not requested")
+	}
+	if usage := chat.Usage(); usage == nil || usage.TotalTokens != 15 {
+		t.Errorf("usage = %+v, want 15 total tokens", usage)
 	}
 	var roles []string
 	for _, m := range second.Messages {
@@ -108,5 +116,80 @@ func TestValidateQuestion(t *testing.T) {
 		if got := validateQuestion(in); got != want {
 			t.Errorf("validateQuestion(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestSaveLoadConversation(t *testing.T) {
+	chat := NewChat(nil, "test-model", "be brief")
+	chat.messages = append(chat.messages, openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleUser, Content: "hello",
+	}, openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleAssistant, Content: "hi",
+	})
+	path := t.TempDir() + "/conversation.json"
+	if err := chat.Save(path, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := chat.Save(path, false); err == nil {
+		t.Fatal("expected refusing to overwrite existing file")
+	}
+	if err := chat.Save(path, true); err != nil {
+		t.Fatalf("force save: %v", err)
+	}
+
+	loaded := NewChat(nil, "test-model", "old system")
+	if err := loaded.Load(path); err != nil {
+		t.Fatal(err)
+	}
+	if loaded.system != "be brief" || len(loaded.messages) != 3 {
+		t.Fatalf("loaded state = system %q, messages %v", loaded.system, loaded.messages)
+	}
+	if loaded.messages[2].Content != "hi" {
+		t.Errorf("assistant message = %q", loaded.messages[2].Content)
+	}
+}
+
+func TestLoadConversationRejectsInvalidFile(t *testing.T) {
+	chat := NewChat(nil, "test-model", "keep this")
+	path := t.TempDir() + "/bad.json"
+	if err := os.WriteFile(path, []byte(`{"version":2,"messages":[]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := chat.Load(path); err == nil {
+		t.Fatal("expected unsupported version error")
+	}
+	if chat.system != "keep this" || len(chat.messages) != 1 {
+		t.Errorf("failed load changed conversation: %+v", chat.messages)
+	}
+}
+
+func TestCodeFenceWriterHandlesSplitFence(t *testing.T) {
+	var out bytes.Buffer
+	w := &codeFenceWriter{w: &out}
+	for _, part := range []string{"before `", "``go\n", "fmt.Println(1)\n", "`", "`` after"} {
+		if _, err := w.Write([]byte(part)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "\x1b[36m") || !strings.Contains(got, "\x1b[0m") {
+		t.Errorf("missing code fence colors: %q", got)
+	}
+	if strings.ReplaceAll(strings.ReplaceAll(got, "\x1b[36m", ""), "\x1b[0m", "") != "before ```go\nfmt.Println(1)\n``` after" {
+		t.Errorf("colored output content changed: %q", got)
+	}
+}
+
+func TestEstimateCost(t *testing.T) {
+	usage := &openai.Usage{PromptTokens: 1000, CompletionTokens: 500}
+	got, ok := estimateCost("gpt-4o-mini", usage)
+	if !ok || got != 0.00045 {
+		t.Errorf("estimateCost = %v, %v; want 0.00045, true", got, ok)
+	}
+	if _, ok := estimateCost("custom-model", usage); ok {
+		t.Error("custom model should not have a guessed price")
 	}
 }
