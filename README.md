@@ -3,7 +3,18 @@ chatgpt: Chat GPT console client in Golang
 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/kkdai/chatgpt/master/LICENSE) ![Go](https://github.com/kkdai/chatgpt/workflows/Go/badge.svg)
 
+English | [中文](README_zh.md)
+
 A Golang console client for ChatGPT (<https://chat.openai.com>) using GPT
+
+Features
+--------------
+
+- Chat Completions API with streaming output and multi-turn conversation memory
+- Selectable model (`--model` / `OPENAI_MODEL`) and custom base URL (`--base-url` / `OPENAI_BASE_URL`) for Azure OpenAI or other OpenAI-compatible services
+- Non-interactive and piped input (`-p`)
+- `/save` and `/load` conversations (JSON), `/system`, `/reset`
+- Token usage and estimated cost, colored code blocks, Ctrl+C to interrupt, request timeout
 
 Install
 --------------
