@@ -18,6 +18,12 @@ jobs:
       with:
         go-version: stable
 
+    - name: Vet
+      run: go vet ./...
+
+    - name: Vulnerability check
+      run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
     - name: Build
       run: go build -v ./...
 
