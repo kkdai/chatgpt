@@ -25,11 +25,26 @@ Options:
 
     -m, --model string     model to use (default "gpt-4o", env OPENAI_MODEL)
     -s, --system string    system prompt
+    -p, --prompt string    send one prompt and exit
+        --base-url string  OpenAI-compatible API base URL (env OPENAI_BASE_URL)
         --timeout duration maximum time for one answer (default 5m0s, 0 for no limit)
 
-The conversation keeps its history across questions. In-session commands:
-`/system <prompt>`, `/reset`, `/help`, `quit` / `exit`. Press Ctrl+C while an
-answer is streaming to interrupt it.
+For one-shot or piped use, pass a prompt with `-p`; piped text is appended to
+that prompt. Piped input without `-p` is sent as a single prompt:
+
+    cat file.txt | chatgpt -p "Summarize this"
+    echo "What is Go?" | chatgpt
+
+The conversation keeps its history across interactive questions. In-session
+commands: `/system <prompt>`, `/reset`, `/save <file>`, `/load <file>`,
+`/help`, `quit` / `exit`. Conversation files use JSON; `/save` refuses to
+overwrite an existing file unless `/save --force <file>` is used. Press Ctrl+C
+while an answer is streaming to interrupt it.
+
+When the API reports token usage, it is printed to stderr along with an
+estimated cost for supported GPT-4o and GPT-4.1 models. Estimates use published
+per-token rates and may not match provider-specific pricing. Code fences are
+colored when output is a terminal; redirected output remains plain text.
 
 Snapshot
 ---------------
