@@ -26,6 +26,8 @@ type Chat struct {
 	ReasoningEffort string
 	// JSONSchema, when set, forces the answer to match this schema (Structured Outputs).
 	JSONSchema json.RawMessage
+	// ImageModel is the model used by /draw (default gpt-image-1).
+	ImageModel string
 	images     []string
 }
 
