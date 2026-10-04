@@ -13,12 +13,23 @@ Install
 Request for API from OpenAI
 ---------------------
 
-Request your OpenAPI key in [https://beta.openai.com/account/api-keys](https://beta.openai.com/account/api-keys)
+Request your OpenAPI key in [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
 Usage
 ---------------------
 
-    export API_KEY=YOUR_KEY chatgpt  
+    export API_KEY=YOUR_KEY   # or OPENAI_API_KEY
+    chatgpt
+
+Options:
+
+    -m, --model string     model to use (default "gpt-4o", env OPENAI_MODEL)
+    -s, --system string    system prompt
+        --timeout duration maximum time for one answer (default 5m0s, 0 for no limit)
+
+The conversation keeps its history across questions. In-session commands:
+`/system <prompt>`, `/reset`, `/help`, `quit` / `exit`. Press Ctrl+C while an
+answer is streaming to interrupt it.
 
 Snapshot
 ---------------
