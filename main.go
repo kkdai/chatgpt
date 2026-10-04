@@ -24,6 +24,7 @@ const helpText = `Commands:
   /save <file>      save the conversation as JSON (use --force to overwrite)
   /load <file>      load a saved JSON conversation
   /image <file>     attach an image (png, jpg, gif, webp) to your next question
+  /draw <prompt>    generate an image and save it as draw-<time>.png
   /help             show this help
   quit, exit        leave
 Press Ctrl+C while an answer is streaming to interrupt it.`
@@ -130,6 +131,25 @@ func run(ctx context.Context, in io.Reader, chat *Chat, timeout time.Duration) {
 			} else {
 				fmt.Printf("Image attached (%d pending); it is sent with your next question.\n", chat.PendingImages())
 			}
+		case input == "/draw" || strings.HasPrefix(input, "/draw "):
+			prompt := strings.TrimSpace(strings.TrimPrefix(input, "/draw"))
+			if prompt == "" {
+				fmt.Fprintln(os.Stderr, "Usage: /draw <prompt>")
+			} else {
+				drawCtx, stop := signal.NotifyContext(ctx, os.Interrupt)
+				if timeout > 0 {
+					var cancel context.CancelFunc
+					drawCtx, cancel = context.WithTimeout(drawCtx, timeout)
+					defer cancel()
+				}
+				path, err := chat.Draw(drawCtx, ".", prompt)
+				stop()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				} else {
+					fmt.Printf("Image saved to %s\n", path)
+				}
+			}
 		case input == "/system" || strings.HasPrefix(input, "/system "):
 			chat.SetSystem(strings.TrimSpace(strings.TrimPrefix(input, "/system")))
 			fmt.Println("System prompt updated, conversation cleared.")
@@ -169,6 +189,7 @@ func main() {
 			}
 			chat := NewChat(openai.NewClientWithConfig(cfg), model, system)
 			chat.ReasoningEffort = effort
+			chat.ImageModel = os.Getenv("OPENAI_IMAGE_MODEL")
 			if schema != "" {
 				raw := []byte(schema)
 				if strings.HasPrefix(schema, "@") {

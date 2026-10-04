@@ -78,3 +78,4 @@ This package is licensed under MIT license. See LICENSE for details.
 - `--reasoning-effort low|medium|high` (env `OPENAI_REASONING_EFFORT`) for o-series models.
 - `/image <file>` attaches a local image to the next question (vision-capable models).
 - `--json-schema '<schema>'` or `--json-schema @schema.json` forces output to match a JSON schema.
+- `/draw <prompt>` generates an image (model from `OPENAI_IMAGE_MODEL`, default `gpt-image-1`) and saves it as `draw-<time>.png` in the current directory.

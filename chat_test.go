@@ -213,3 +213,26 @@ func TestAttachImageAndMessage(t *testing.T) {
 		t.Fatalf("unexpected message: %+v", msg)
 	}
 }
+
+func TestDrawSavesImage(t *testing.T) {
+	var got openai.ImageRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		fmt.Fprint(w, `{"data":[{"b64_json":"aGVsbG8="}]}`)
+	}))
+	defer srv.Close()
+	cfg := openai.DefaultConfig("k")
+	cfg.BaseURL = srv.URL + "/v1"
+	chat := NewChat(openai.NewClientWithConfig(cfg), "m", "")
+	dir := t.TempDir()
+	path, err := chat.Draw(context.Background(), dir, "a cat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Prompt != "a cat" || got.Model != defaultImageModel {
+		t.Fatalf("unexpected request: %+v", got)
+	}
+	if b, err := os.ReadFile(path); err != nil || string(b) != "hello" {
+		t.Fatalf("bad file: %q %v", b, err)
+	}
+}
