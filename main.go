@@ -24,7 +24,8 @@ func GetResponse(client *gpt3.Client, ctx context.Context, question string) {
 
 	resp, err := client.CreateCompletionStream(ctx, req)
 	if err != nil {
-		fmt.Errorf("CreateCompletionStream returned error: %v", err)
+		fmt.Fprintf(os.Stderr, "CreateCompletionStream returned error: %v\n", err)
+		return
 	}
 	defer resp.Close()
 
@@ -35,7 +36,8 @@ func GetResponse(client *gpt3.Client, ctx context.Context, question string) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			fmt.Errorf("Stream error: %v", err)
+			fmt.Fprintf(os.Stderr, "Stream error: %v\n", err)
+			break
 		} else {
 			counter++
 			fmt.Print(data.Choices[0].Text)
@@ -43,7 +45,7 @@ func GetResponse(client *gpt3.Client, ctx context.Context, question string) {
 		}
 	}
 	if counter == 0 {
-		fmt.Errorf("Stream did not return any responses")
+		fmt.Fprintln(os.Stderr, "Stream did not return any responses")
 	}
 	fmt.Println("")
 }
