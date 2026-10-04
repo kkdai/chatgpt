@@ -1,85 +1,74 @@
 package openai
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 )
 
 type ChatCompletionStreamChoiceDelta struct {
-	Content string `json:"content"`
+	Content      string        `json:"content,omitempty"`
+	Role         string        `json:"role,omitempty"`
+	FunctionCall *FunctionCall `json:"function_call,omitempty"`
+	ToolCalls    []ToolCall    `json:"tool_calls,omitempty"`
+	Refusal      string        `json:"refusal,omitempty"`
+
+	// This property is used for the "reasoning" feature supported by deepseek-reasoner
+	// which is not in the official documentation.
+	// the doc from deepseek:
+	// - https://api-docs.deepseek.com/api/create-chat-completion#responses
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+}
+
+type ChatCompletionStreamChoiceLogprobs struct {
+	Content []ChatCompletionTokenLogprob `json:"content,omitempty"`
+	Refusal []ChatCompletionTokenLogprob `json:"refusal,omitempty"`
+}
+
+type ChatCompletionTokenLogprob struct {
+	Token       string                                 `json:"token"`
+	Bytes       []int64                                `json:"bytes,omitempty"`
+	Logprob     float64                                `json:"logprob,omitempty"`
+	TopLogprobs []ChatCompletionTokenLogprobTopLogprob `json:"top_logprobs"`
+}
+
+type ChatCompletionTokenLogprobTopLogprob struct {
+	Token   string  `json:"token"`
+	Bytes   []int64 `json:"bytes"`
+	Logprob float64 `json:"logprob"`
 }
 
 type ChatCompletionStreamChoice struct {
-	Index        int                             `json:"index"`
-	Delta        ChatCompletionStreamChoiceDelta `json:"delta"`
-	FinishReason string                          `json:"finish_reason"`
+	Index                int                                 `json:"index"`
+	Delta                ChatCompletionStreamChoiceDelta     `json:"delta"`
+	Logprobs             *ChatCompletionStreamChoiceLogprobs `json:"logprobs,omitempty"`
+	FinishReason         FinishReason                        `json:"finish_reason"`
+	ContentFilterResults ContentFilterResults                `json:"content_filter_results,omitempty"`
+}
+
+type PromptFilterResult struct {
+	Index                int                  `json:"index"`
+	ContentFilterResults ContentFilterResults `json:"content_filter_results,omitempty"`
 }
 
 type ChatCompletionStreamResponse struct {
-	ID      string                       `json:"id"`
-	Object  string                       `json:"object"`
-	Created int64                        `json:"created"`
-	Model   string                       `json:"model"`
-	Choices []ChatCompletionStreamChoice `json:"choices"`
+	ID                  string                       `json:"id"`
+	Object              string                       `json:"object"`
+	Created             int64                        `json:"created"`
+	Model               string                       `json:"model"`
+	Choices             []ChatCompletionStreamChoice `json:"choices"`
+	SystemFingerprint   string                       `json:"system_fingerprint"`
+	PromptAnnotations   []PromptAnnotation           `json:"prompt_annotations,omitempty"`
+	PromptFilterResults []PromptFilterResult         `json:"prompt_filter_results,omitempty"`
+	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
+	// When present, it contains a null value except for the last chunk which contains the token usage statistics
+	// for the entire request.
+	Usage *Usage `json:"usage,omitempty"`
 }
 
 // ChatCompletionStream
 // Note: Perhaps it is more elegant to abstract Stream using generics.
 type ChatCompletionStream struct {
-	emptyMessagesLimit uint
-	isFinished         bool
-
-	reader   *bufio.Reader
-	response *http.Response
-}
-
-func (stream *ChatCompletionStream) Recv() (response ChatCompletionStreamResponse, err error) {
-	if stream.isFinished {
-		err = io.EOF
-		return
-	}
-
-	var emptyMessagesCount uint
-
-waitForData:
-	line, err := stream.reader.ReadBytes('\n')
-	if err != nil {
-		return
-	}
-
-	var headerData = []byte("data: ")
-	line = bytes.TrimSpace(line)
-	if !bytes.HasPrefix(line, headerData) {
-		emptyMessagesCount++
-		if emptyMessagesCount > stream.emptyMessagesLimit {
-			err = ErrTooManyEmptyStreamMessages
-			return
-		}
-
-		goto waitForData
-	}
-
-	line = bytes.TrimPrefix(line, headerData)
-	if string(line) == "[DONE]" {
-		stream.isFinished = true
-		err = io.EOF
-		return
-	}
-
-	err = json.Unmarshal(line, &response)
-	return
-}
-
-func (stream *ChatCompletionStream) Close() {
-	stream.response.Body.Close()
-}
-
-func (stream *ChatCompletionStream) GetResponse() *http.Response {
-	return stream.response
+	*streamReader[ChatCompletionStreamResponse]
 }
 
 // CreateChatCompletionStream — API call to create a chat completion w/ streaming
@@ -90,21 +79,34 @@ func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	request ChatCompletionRequest,
 ) (stream *ChatCompletionStream, err error) {
+	urlSuffix := chatCompletionsSuffix
+	if !checkEndpointSupportsModel(urlSuffix, request.Model) {
+		err = ErrChatCompletionInvalidModel
+		return
+	}
+
 	request.Stream = true
-	req, err := c.newStreamRequest(ctx, "POST", "/chat/completions", request)
-	if err != nil {
+	reasoningValidator := NewReasoningValidator()
+	if err = reasoningValidator.Validate(request); err != nil {
 		return
 	}
 
-	resp, err := c.config.HTTPClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
+	req, err := c.newRequest(
+		ctx,
+		http.MethodPost,
+		c.fullURL(urlSuffix, withModel(request.Model)),
+		withBody(request),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := sendRequestStream[ChatCompletionStreamResponse](c, req)
 	if err != nil {
 		return
 	}
-
 	stream = &ChatCompletionStream{
-		emptyMessagesLimit: c.config.EmptyMessagesLimit,
-		reader:             bufio.NewReader(resp.Body),
-		response:           resp,
+		streamReader: resp,
 	}
 	return
 }
