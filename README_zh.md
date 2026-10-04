@@ -49,8 +49,9 @@ chatgpt: 以 Golang 撰寫的 Chat GPT 終端機客戶端
     echo "什麼是 Go？" | chatgpt
 
 互動模式下會保留對話歷史。對話中可用的指令：`/system <prompt>`、`/reset`、
-`/save <file>`、`/load <file>`、`/image <file>`、`/help`、`quit` / `exit`。
+`/save <file>`、`/load <file>`、`/image <file>`、`/draw <prompt>`、`/help`、`quit` / `exit`。
 `/image <file>` 會將本機圖片附加至下一個問題，適用於支援視覺功能的模型。
+`/draw <prompt>` 會呼叫圖片生成 API，並將圖片儲存為目前目錄下的 `draw-<時間>.png`（模型可用 `OPENAI_IMAGE_MODEL` 設定，預設為 `gpt-image-1`）。
 對話檔使用 JSON 格式；`/save` 不會覆蓋既有檔案，除非使用 `/save --force <file>`。
 回答串流輸出時按 Ctrl+C 可中斷。
 
@@ -79,3 +80,4 @@ Snapshot
 - `--reasoning-effort low|medium|high`（環境變數 `OPENAI_REASONING_EFFORT`）可設定 o 系列模型的推理程度。
 - `/image <file>` 可將本機圖片附加至下一個問題，需使用支援視覺功能的模型。
 - `--json-schema '<JSON Schema>'` 或 `--json-schema @schema.json` 可指定結構化輸出的格式。
+- `/draw <prompt>` 可生成圖片（模型由 `OPENAI_IMAGE_MODEL` 指定，預設 `gpt-image-1`），並儲存為目前目錄下的 `draw-<時間>.png`。
