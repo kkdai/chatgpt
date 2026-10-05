@@ -184,6 +184,31 @@ func TestCodeFenceWriterHandlesSplitFence(t *testing.T) {
 	}
 }
 
+func TestTerminalSafeWriterStripsControlCharacters(t *testing.T) {
+	var out bytes.Buffer
+	codeWriter := &codeFenceWriter{w: &out}
+	w := terminalSafeWriter{w: codeWriter}
+
+	if _, err := w.Write([]byte("before\x1b]52;c;c2VjcmV0\x07\u009b2J```go\nok\n```after")); err != nil {
+		t.Fatal(err)
+	}
+	if err := codeWriter.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	got := out.String()
+	withoutAppColor := strings.ReplaceAll(strings.ReplaceAll(got, "\x1b[36m", ""), "\x1b[0m", "")
+	if strings.ContainsRune(withoutAppColor, '\x1b') || strings.ContainsRune(withoutAppColor, '\x07') || strings.ContainsRune(withoutAppColor, '\u009b') {
+		t.Errorf("terminal control character was written: %q", got)
+	}
+	if withoutAppColor != "before]52;c;c2VjcmV02J```go\nok\n```after" {
+		t.Errorf("output = %q", withoutAppColor)
+	}
+	if !strings.Contains(got, "\x1b[36m") || !strings.Contains(got, "\x1b[0m") {
+		t.Errorf("application color codes missing: %q", got)
+	}
+}
+
 func TestEstimateCost(t *testing.T) {
 	usage := &openai.Usage{PromptTokens: 1000, CompletionTokens: 500}
 	got, ok := estimateCost("gpt-4o-mini", usage)
