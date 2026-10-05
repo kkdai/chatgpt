@@ -189,7 +189,7 @@ func TestTerminalSafeWriterStripsControlCharacters(t *testing.T) {
 	codeWriter := &codeFenceWriter{w: &out}
 	w := terminalSafeWriter{w: codeWriter}
 
-	if _, err := w.Write([]byte("before\x1b]52;c;c2VjcmV0\x07\x9b2J```go\nok\n```after")); err != nil {
+	if _, err := w.Write([]byte("before\x1b]52;c;c2VjcmV0\x07\u009b2J```go\nok\n```after")); err != nil {
 		t.Fatal(err)
 	}
 	if err := codeWriter.Flush(); err != nil {
