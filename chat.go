@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -86,6 +87,23 @@ type codeFenceWriter struct {
 	w       io.Writer
 	inCode  bool
 	pending string
+}
+
+// terminalSafeWriter removes terminal control characters from untrusted output.
+// Newlines and tabs are retained to preserve normal formatted responses.
+type terminalSafeWriter struct {
+	w io.Writer
+}
+
+func (w terminalSafeWriter) Write(p []byte) (int, error) {
+	text := strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' || !unicode.IsControl(r) {
+			return r
+		}
+		return -1
+	}, string(p))
+	_, err := io.WriteString(w.w, text)
+	return len(p), err
 }
 
 func (w *codeFenceWriter) Write(p []byte) (int, error) {
@@ -260,7 +278,7 @@ func (c *Chat) Ask(ctx context.Context, w io.Writer, question string) error {
 	var colorWriter *codeFenceWriter
 	if file, ok := w.(*os.File); ok && isTerminal(file) {
 		colorWriter = &codeFenceWriter{w: w}
-		output = colorWriter
+		output = terminalSafeWriter{w: colorWriter}
 	}
 	history := append(c.messages, c.userMessage(question))
 
