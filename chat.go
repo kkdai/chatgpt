@@ -326,12 +326,23 @@ func (c *Chat) Ask(ctx context.Context, w io.Writer, question string) error {
 			continue
 		}
 		text := resp.Choices[0].Delta.Content
+		if text == "" {
+			continue
+		}
+		if _, err := io.WriteString(output, text); err != nil {
+			// The reader is gone (e.g. broken pipe): stop spending API
+			// tokens and do not record an answer nobody received.
+			return fmt.Errorf("write output: %w", err)
+		}
 		answer.WriteString(text)
-		fmt.Fprint(output, text)
 	}
-	fmt.Fprintln(output)
+	if _, err := fmt.Fprintln(output); err != nil {
+		return fmt.Errorf("write output: %w", err)
+	}
 	if colorWriter != nil {
-		colorWriter.Flush()
+		if err := colorWriter.Flush(); err != nil {
+			return fmt.Errorf("flush output: %w", err)
+		}
 	}
 
 	if answer.Len() > 0 {

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -92,6 +94,38 @@ func TestAskErrorLeavesHistoryUnchanged(t *testing.T) {
 	}
 	if len(chat.messages) != 0 {
 		t.Errorf("history = %v", chat.messages)
+	}
+}
+
+type failingWriter struct{ writes int }
+
+func (w *failingWriter) Write(p []byte) (int, error) {
+	w.writes++
+	return 0, io.ErrClosedPipe
+}
+
+func TestAskStopsOnWriteErrorAndKeepsHistory(t *testing.T) {
+	chat := newTestChat(t, "", func(openai.ChatCompletionRequest) []string { return []string{"a", "b", "c"} })
+
+	w := &failingWriter{}
+	err := chat.Ask(context.Background(), w, "hi")
+	if !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("err = %v, want write error", err)
+	}
+	if w.writes != 1 {
+		t.Errorf("writes = %d, want 1", w.writes)
+	}
+	if len(chat.messages) != 0 {
+		t.Errorf("history = %v", chat.messages)
+	}
+}
+
+func TestReadLimited(t *testing.T) {
+	if got, err := readLimited(strings.NewReader("abcd"), 4); err != nil || string(got) != "abcd" {
+		t.Errorf("at limit: %q, %v", got, err)
+	}
+	if _, err := readLimited(strings.NewReader("abcde"), 4); err == nil {
+		t.Error("expected error over limit")
 	}
 }
 
