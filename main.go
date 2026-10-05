@@ -207,7 +207,7 @@ func main() {
 				var input []byte
 				if !isTerminal(os.Stdin) {
 					var err error
-					input, err = io.ReadAll(os.Stdin)
+					input, err = readLimited(os.Stdin, maxStdinSize)
 					if err != nil {
 						return fmt.Errorf("read stdin: %w", err)
 					}
@@ -243,6 +243,21 @@ func main() {
 	if err := rootCmd.ExecuteContext(context.Background()); err != nil {
 		os.Exit(1)
 	}
+}
+
+// maxStdinSize bounds piped input so unbounded streams cannot exhaust memory.
+const maxStdinSize = 16 << 20
+
+// readLimited reads all of r, failing if it holds more than limit bytes.
+func readLimited(r io.Reader, limit int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("input exceeds %d MiB limit", limit>>20)
+	}
+	return data, nil
 }
 
 func isTerminal(file *os.File) bool {
