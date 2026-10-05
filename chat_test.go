@@ -201,7 +201,7 @@ func TestTerminalSafeWriterStripsControlCharacters(t *testing.T) {
 	if strings.ContainsRune(withoutAppColor, '\x1b') || strings.ContainsRune(withoutAppColor, '\x07') || strings.ContainsRune(withoutAppColor, '\u009b') {
 		t.Errorf("terminal control character was written: %q", got)
 	}
-	if withoutAppColor != "before]52;c;c2VjcmV0[2J```go\nok\n```after" {
+	if withoutAppColor != "before]52;c;c2VjcmV02J```go\nok\n```after" {
 		t.Errorf("output = %q", withoutAppColor)
 	}
 	if !strings.Contains(got, "\x1b[36m") || !strings.Contains(got, "\x1b[0m") {
